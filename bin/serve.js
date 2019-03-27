@@ -13,7 +13,6 @@ const Ajv = require('ajv');
 /* const checkForUpdate = require('update-check'); */
 const chalk = require('chalk');
 const arg = require('arg');
-const {write: copy} = require('clipboardy');
 const handler = require('serve-handler');
 const schema = require('@zeit/schemas/deployment/config-static');
 const boxen = require('boxen');
@@ -31,29 +30,6 @@ const warning = (message) => chalk`{yellow WARNING:} ${message}`;
 const info = (message) => chalk`{magenta INFO:} ${message}`;
 const error = (message) => chalk`{red ERROR:} ${message}`;
 
-/*
-const updateCheck = async (isDebugging) => {
-	let update = null;
-
-	try {
-		update = await checkForUpdate(pkg);
-	} catch (err) {
-		const suffix = isDebugging ? ':' : ' (use `--debug` to see full error)';
-		console.error(warning(`Checking for updates failed${suffix}`));
-
-		if (isDebugging) {
-			console.error(err);
-		}
-	}
-
-	if (!update) {
-		return;
-	}
-
-	console.log(`${chalk.bgRed('UPDATE AVAILABLE')} The latest version of \`serve\` is ${update.latest}`);
-};
-*/
-
 const getHelp = () => chalk`
   {bold.cyan serve} - Static file serving and directory listing
 
@@ -66,8 +42,6 @@ const getHelp = () => chalk`
       By default, {cyan serve} will listen on {bold 0.0.0.0:5000} and serve the
       current working directory on that address.
 
-      Specifying a single {bold --listen} argument will overwrite the default, not supplement it.
-
   {bold OPTIONS}
 
       --help                              Shows this help message
@@ -79,11 +53,7 @@ const getHelp = () => chalk`
 
       -d, --debug                         Show debugging information
 
-      -s, --single                        Rewrite all not-found requests to \`index.html\`
-
       -c, --config                        Specify custom path to \`serve.json\`
-
-      -n, --no-clipboard                  Do not copy the local address to the clipboard
 
   {bold ENDPOINTS}
 
@@ -168,8 +138,7 @@ const getNetworkAddress = () => {
 };
 
 const startEndpoint = (endpoint, config, args, previous) => {
-	const {isTTY} = process.stdout;
-	const clipboard = args['--no-clipboard'] !== true;
+    const {isTTY} = process.stdout;
 	const compress = args['--no-compression'] !== true;
 
 	const server = http.createServer(async (request, response) => {
@@ -225,15 +194,6 @@ const startEndpoint = (endpoint, config, args, previous) => {
 				message += chalk.red(`\n\nThis port was picked because ${chalk.underline(previous)} is in use.`);
 			}
 
-			if (clipboard) {
-				try {
-					await copy(localAddress);
-					message += `\n\n${chalk.grey('Copied local address to clipboard!')}`;
-				} catch (err) {
-					console.error(error(`Cannot copy to clipboard: ${err.message}`));
-				}
-			}
-
 			console.log(boxen(message, {
 				padding: 1,
 				borderColor: 'green',
@@ -249,8 +209,6 @@ const startEndpoint = (endpoint, config, args, previous) => {
 const loadConfig = async (cwd, entry, args) => {
 	const files = [
 		'serve.json',
-		'now.json',
-		'package.json'
 	];
 
 	if (args['--config']) {
@@ -286,25 +244,8 @@ const loadConfig = async (cwd, entry, args) => {
 			continue;
 		}
 
-		try {
-			switch (file) {
-			case 'now.json':
-				content = content.static;
-				break;
-			case 'package.json':
-				content = content.now.static;
-				break;
-			}
-		} catch (err) {
-			continue;
-		}
-
 		Object.assign(config, content);
 		console.log(info(`Discovered configuration in \`${file}\``));
-
-		if (file === 'now.json' || file === 'package.json') {
-			console.error(warning('The config files `now.json` and `package.json` are deprecated. Please use `serve.json`.'));
-		}
 
 		break;
 	}
@@ -338,18 +279,14 @@ const loadConfig = async (cwd, entry, args) => {
 			'--help': Boolean,
 			'--version': Boolean,
 			'--listen': [parseEndpoint],
-			'--single': Boolean,
 			'--debug': Boolean,
 			'--config': String,
-			'--no-clipboard': Boolean,
 			'--no-compression': Boolean,
 			'-h': '--help',
 			'-v': '--version',
 			'-l': '--listen',
-			'-s': '--single',
 			'-d': '--debug',
 			'-c': '--config',
-			'-n': '--no-clipboard',
 			'-u': '--no-compression',
 			// This is deprecated and only for backwards-compatibility.
 			'-p': '--listen'
@@ -358,12 +295,6 @@ const loadConfig = async (cwd, entry, args) => {
 		console.error(error(err.message));
 		process.exit(1);
 	}
-
-	/*
-        if (process.env.NO_UPDATE_CHECK !== '1') {
-		await updateCheck(args['--debug']);
-	}
-        */
 
 	if (args['--version']) {
 		console.log(pkg.version);
@@ -389,17 +320,6 @@ const loadConfig = async (cwd, entry, args) => {
 	const entry = args._.length > 0 ? path.resolve(args._[0]) : cwd;
 
 	const config = await loadConfig(cwd, entry, args);
-
-	if (args['--single']) {
-		const {rewrites} = config;
-		const existingRewrites = Array.isArray(rewrites) ? rewrites : [];
-
-		// As the first rewrite rule, make `--single` work
-		config.rewrites = [{
-			source: '**',
-			destination: '/index.html'
-		}, ...existingRewrites];
-	}
 
 	for (const endpoint of args['--listen']) {
 		startEndpoint(endpoint, config, args);
