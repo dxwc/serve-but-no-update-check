@@ -10,7 +10,7 @@ const os = require('os');
 
 // Packages
 const Ajv = require('ajv');
-const checkForUpdate = require('update-check');
+/* const checkForUpdate = require('update-check'); */
 const chalk = require('chalk');
 const arg = require('arg');
 const {write: copy} = require('clipboardy');
@@ -31,6 +31,7 @@ const warning = (message) => chalk`{yellow WARNING:} ${message}`;
 const info = (message) => chalk`{magenta INFO:} ${message}`;
 const error = (message) => chalk`{red ERROR:} ${message}`;
 
+/*
 const updateCheck = async (isDebugging) => {
 	let update = null;
 
@@ -51,6 +52,7 @@ const updateCheck = async (isDebugging) => {
 
 	console.log(`${chalk.bgRed('UPDATE AVAILABLE')} The latest version of \`serve\` is ${update.latest}`);
 };
+*/
 
 const getHelp = () => chalk`
   {bold.cyan serve} - Static file serving and directory listing
@@ -357,9 +359,11 @@ const loadConfig = async (cwd, entry, args) => {
 		process.exit(1);
 	}
 
-	if (process.env.NO_UPDATE_CHECK !== '1') {
+	/*
+        if (process.env.NO_UPDATE_CHECK !== '1') {
 		await updateCheck(args['--debug']);
 	}
+        */
 
 	if (args['--version']) {
 		console.log(pkg.version);
